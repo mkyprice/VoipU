@@ -2,15 +2,17 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Network;
-using Network.Logger;
+using Sosodotnet;
+using Sosodotnet.Logger;
 using UnityEngine;
 
 public class AudioStreamer : MonoBehaviour
 {
-    public const int FREQUENCY = 44100 / 4;
+    public int Frequency = 44100;
     
     public AudioPlayer Player;
+    public float TrimFreq = 0.001f;
+    public float Amplifier = 1f;
     private AudioClip Mic;
     private int ConnectionId;
     private AudioSource Source;
@@ -21,7 +23,7 @@ public class AudioStreamer : MonoBehaviour
     void Start()
     {
         NetworkManager.PacketReceived += OnPacketReceived;
-        NetworkManager.TCPConnect("127.0.0.1", 6969, (success, id) =>
+        NetworkManager.ConnectTCP("127.0.0.1", 6969, (success, id) =>
         {
             ConnectionId = id;
             if (success)
@@ -37,7 +39,7 @@ public class AudioStreamer : MonoBehaviour
         Source = GetComponent<AudioSource>();
         string mic_name = Microphone.devices[0];
         Debug.Log(mic_name);
-        Mic = Microphone.Start(mic_name, true, 1, FREQUENCY);
+        Mic = Microphone.Start(mic_name, true, 1, Frequency);
         while(Microphone.GetPosition(mic_name) < 0) {}
         Source.Play();
     }
@@ -61,7 +63,7 @@ public class AudioStreamer : MonoBehaviour
         }
     }
 
-    private void FixedUpdate()
+    private void Update()
     {
         int pos = Microphone.GetPosition(null);
         int diff = pos - LastSample;
@@ -72,13 +74,16 @@ public class AudioStreamer : MonoBehaviour
 
             int index = -1;
             int trim_to = -1;
+            float last = 1;
             for (int i = 0; i < samples.Length; i++)
             {
-                if (samples[i] > 0.001f)
+                if (Math.Abs(samples[i]) > TrimFreq)
                 {
                     if (index == -1) index = i;
                     trim_to = i;
                 }
+
+                samples[i] *= Amplifier;
             }
 
             if (index != -1)
@@ -100,7 +105,7 @@ public class AudioStreamer : MonoBehaviour
             {
                 float[] samples = SampleQueue.Dequeue();
                 Log.Info("Playing {0} samples", samples.Length);
-                Player.Play(samples, Mic.channels);
+                Player.Play(samples, Mic.channels, Frequency);
             }
         }
     }
@@ -113,7 +118,6 @@ public class AudioStreamer : MonoBehaviour
             byte[] data = BitConverter.GetBytes(array[i]);
             Array.Copy(data, 0, bytes, i * 4, data.Length);
         }
-
         return bytes;
     }
 
@@ -124,7 +128,6 @@ public class AudioStreamer : MonoBehaviour
         {
             floats[i / 4] = BitConverter.ToSingle(array, i);
         }
-
         return floats;
     }
 }

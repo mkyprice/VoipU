@@ -14,9 +14,9 @@ public class AudioPlayer : MonoBehaviour
         // Source = GetComponent<AudioSource>();
     }
 
-    public void Play(float[] samples, int channels)
+    public void Play(float[] samples, int channels, int freq)
     {
-        AudioClip clip = AudioClip.Create("", samples.Length, channels, AudioStreamer.FREQUENCY, false);
+        AudioClip clip = AudioClip.Create("", samples.Length, channels, freq, false);
         clip.SetData(samples, 0);
         Source.clip = clip;
         if (Source.isPlaying == false)
